@@ -1,0 +1,268 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <wctype.h>
+#include <wchar.h>
+#include <locale.h>
+#include <ctype.h>
+#define RED "\033[1;31m"
+#define BLUE "\033[1;34m"
+#define GREEN "\033[1;32m"
+#define YELLOW "\033[1;33m"
+#define COLLOR_OFF "\033[0m"
+#define MEM_STEP 5 * sizeof(wchar_t)
+struct Text {
+    struct Sentence **text;
+    int size;
+    int n;
+};
+struct Sentence {
+    wchar_t *str;
+    int size;
+};
+struct Sentence *read_sentence(){
+    int size = MEM_STEP;
+    wchar_t *buf = (wchar_t*)malloc(size * sizeof(wchar_t));
+    wchar_t temp = getwchar();
+    int n = 0;
+    do{
+        if (n >= size - 2 * sizeof(wchar_t)) {
+            buf = realloc(buf, (size + MEM_STEP) * sizeof(wchar_t));
+            size += MEM_STEP;
+        }
+
+        buf[n] = temp;
+        temp = getwchar();
+        n++;
+    }while (temp != '.' && temp != '\n');
+
+    buf[n] = temp;
+    buf[n + 1] = '\0';
+    if (buf[0] == '\n') {
+      buf++;
+    }
+    struct Sentence *sentence = malloc(sizeof(struct Sentence));
+    sentence->str = buf;
+    sentence->size = size;
+    return sentence;
+}
+int repeat_sentence(struct Sentence** txt, struct Sentence* sent, int n){
+    for(int i = 0; i < n; i++){
+        int k = 0;
+        for(int j = 0; j < wcslen(sent->str); j++){
+            if (towupper(txt[i]->str[j]) == towupper(sent->str[j]))
+                k++;
+
+        }
+            if(k == wcslen(sent->str) && k == wcslen(txt[i]->str))
+            return 0;
+
+    }
+    return 1;
+}
+struct Text read_text(){
+    int size = MEM_STEP;
+    struct Sentence **text = malloc(size * sizeof(struct Sentence*));
+    struct Sentence *temp;
+    int n = 0;
+    int nlcount = 0;
+
+    do{
+        temp = read_sentence();
+        if (n >= size - 2 * sizeof(struct String*)) {
+            text = realloc(text, (size + MEM_STEP)* sizeof(struct Sentence *));
+            size += MEM_STEP;
+        }
+
+        if(temp->str[0] == '\n' && temp->str[1] == '\0'){
+            nlcount++;
+        }else{
+            while (temp->str[0] == '\t' || temp->str[0] == ' ' || temp->str[0] == '\n') {
+                temp->str++;
+            }
+
+            if (repeat_sentence(text, temp, n)){
+                text[n] = temp;
+                n++;
+
+            }
+        }
+    }while (nlcount < 1);
+
+    struct Text txt;
+    txt.text = text;
+    txt.size = size;
+    txt.n = n;
+    return txt;
+
+}
+void coloring_words(struct Text* txt){
+    wchar_t *pr;
+    for(int i = 0;i < txt->n; i++){
+        wchar_t *p = wcstok(txt->text[i]->str, L" ,;()", &pr);
+        while(p != NULL){
+            int len_word = wcslen(p);
+            if(pr == NULL) len_word--;
+            if(len_word % 4 == 0){
+                printf("%s %ls ", RED, p);
+            }
+            if(len_word % 4 == 1){
+                printf("%s %ls ", BLUE, p);
+            }
+            if(len_word % 4 == 2){
+                printf("%s %ls ", GREEN, p);
+            }
+            if(len_word % 4 == 3) {
+                printf("%s %ls ", YELLOW, p);
+            }
+            p = wcstok(NULL, L" ", &pr);
+
+        }
+    }
+
+}
+void func_2_print_word( struct Text* txt){
+    wchar_t *pr;
+    for(int i = 0; i < txt->n; i++){
+        wchar_t *p = wcstok(txt->text[i]->str, L" ,", &pr);
+        int len_word = wcslen(p);
+        int count = 0;
+        while(p != NULL){
+            len_word = wcslen(p);
+            if(pr == NULL) len_word--;
+            if (p[0] == towupper(p[0]) && p[len_word-1] == towupper(p[len_word-1]) && len_word != 1){
+                if(iswalpha(p[0]) && iswalpha(p[len_word -1])){
+                    printf("%ls \n", p);
+                    count++;
+
+                }
+             }
+            p = wcstok(NULL, L" ", &pr);
+        }
+        if(count != 0){
+            printf("Номер предложения - %d\n", i);
+
+        }
+    }
+}
+void delete_numbers( struct Sentence* sent){
+    wchar_t * new_str = (wchar_t *) malloc(wcslen(sent->str) * sizeof(wchar_t *));
+    int i = 0;
+    int j = 0;
+    while(i < wcslen(sent->str)){
+        if(isdigit(sent->str[i]) == 0 ){
+            new_str[j] = sent->str[i];
+        }
+        else{
+            j--;
+        }
+        i++;
+        j++;
+    }
+    for(int i = 0; i < wcslen(sent->str); i++){
+        sent->str[i] = new_str[i];
+
+    }
+    printf("%ls\n", sent->str);
+}
+int last_word_len(struct Sentence* sent){
+    int count = 0;
+
+    for(int j = wcslen((sent->str)) - 1; j > 0; j--){
+      if(sent->str[j] != ' '){
+          count++;
+        }
+      else{
+            return (count - 1);
+        }
+    }
+    if(count == 0){
+        for(int i = 0; i < wcslen((sent->str))-1; i ++){
+            if(sent->str[i] != '.'){
+                count++;
+            }
+        }
+    }
+    return count;
+}
+int comp(const void * x1, const void * x2){
+    return ( *(int*)x1 - *(int*)x2 );
+}
+void sorted_print(struct Text* txt, int* arr){
+       int i = 0;
+       while(i != txt->n){
+           for(int j = 0; j < txt->n; j++){
+               if(arr[i] == last_word_len(txt->text[j])){
+                   printf("%ls - %d\n", txt->text[j]->str, arr[i]);
+                   i++;
+               }
+           }
+       }
+}
+int find_len(struct Text* txt){
+    for(int i = 0; i < txt->n; i++){    
+        int c = 1000;
+        int ind = 0;
+        wchar_t*pr;
+        int j = 0;
+        wchar_t *word;
+        wchar_t * p = wcstok(txt->text[i]->str, L" ,:()", &pr);
+        while(p != NULL){
+            ind++;
+            int len = wcslen(p);
+            if(pr == NULL) len--;
+            if(len <= c){
+                c = len;
+                j = ind;
+                word = p;
+            }
+            p = wcstok(NULL, L" ,;()", &pr);
+        }
+        printf("%ls - номер предложения:%d; Индекс слова: %d \n", word, i, j-1);
+    }
+}
+
+int main(){
+    setlocale(LC_ALL, "");
+    puts("Введите текст, по окончании ввода нажмите два раза Enter:");
+    struct Text main_text = read_text();
+    int* arr = malloc(main_text.n * sizeof(int));
+
+    puts("Введите номер одного из доступных действий:\n"
+         "1:“Раскрасить” каждое слово в зависимости от остатка от деления его длины на 4. Если остаток равен 0 - красный цвет, 1 - синий, 2 - зеленый, 3 - желтый.\n"
+         "2: Распечатать каждое слово которое начинается и заканчивается на заглавную букву и номера предложений в которых оно встречается.\n"
+         "3: Отсортировать предложения по длине последнего слова в предложении.\n"
+         "4: Удалить все числа из предложений. Число - набор подряд идущих цифр, перед и после которого стоят пробелы.");
+    wchar_t func_numb = getwchar();
+
+    switch (func_numb){
+        case '1':
+                coloring_words(&main_text);
+            break;
+        case '2':
+                func_2_print_word(&main_text);
+            break;
+        case '3':
+            for (int i = 0; i < main_text.n; i++) {
+                arr[i] = last_word_len(main_text.text[i]);
+            }
+            qsort(arr, main_text.n, sizeof(int), comp);
+            sorted_print(&main_text, arr);
+            break;
+        case '4':
+            for(int i = 0; i < main_text.n; i++){
+                delete_numbers( main_text.text[i]);
+            }
+            break;
+        case '5':
+            find_len(&main_text);
+            break;
+    }
+    printf("%s \nКоличество предложений %d",COLLOR_OFF, main_text.n);
+
+    for (int i = 0; i < main_text.n; i++) {
+        free(main_text.text[i]);
+    }
+    free(main_text.text);
+    free(arr);
+    return 0;
+}
